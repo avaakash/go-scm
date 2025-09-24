@@ -7,6 +7,7 @@ package scm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -170,7 +172,7 @@ func (c *Client) Do(ctx context.Context, in *Request) (*Response, error) {
 	}
 	// hack to prevent the client from un-escaping the
 	// encoded github path parameters when parsing the url.
-	if strings.Contains(in.Path, "%2F") {
+	if c.Driver == DriverGithub && strings.Contains(in.Path, "%2F") {
 		req.URL.Opaque = strings.Split(req.URL.RawPath, "?")[0]
 	}
 
@@ -183,6 +185,11 @@ func (c *Client) Do(ctx context.Context, in *Request) (*Response, error) {
 	client := c.Client
 	if client == nil {
 		client = http.DefaultClient
+	}
+	// debug log request and client information
+	if f, e := os.OpenFile("/tmp/go-scm-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); e == nil {
+		fmt.Fprintf(f, "[%s] client.Do req: %+v client: %+v\n", time.Now().Format(time.RFC3339Nano), req, client)
+		_ = f.Close()
 	}
 	res, err := client.Do(req)
 	if err != nil {
